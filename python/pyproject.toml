@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cf_speedtest"
+name = "cf_speedtest_custom"
 version = "1.0.0"
 description = "Python client for Cloudflare-style speedtest (Worker)"
 readme = "README.md"
@@ -17,4 +17,4 @@ dev = []
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["cf_speedtest*"]
+include = ["cf_speedtest_custom*"]

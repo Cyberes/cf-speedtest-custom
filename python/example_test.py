@@ -6,7 +6,7 @@ import sys
 
 import requests
 
-from cf_speedtest.speedtest import run_standard_test, silence_warnings
+from cf_speedtest_custom.speedtest import run_standard_test, silence_warnings
 
 
 def main() -> int:

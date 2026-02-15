@@ -21,7 +21,7 @@ Optional: `npx wrangler secret put SPEEDTEST_PASSWORD` to password-protect. User
 ## Python client
 
 ```python
-from cf_speedtest import run_standard_test
+from cf_speedtest_custom import run_standard_test
 
 # No auth
 results = run_standard_test("https://cf-speedtest.xxx.workers.dev")

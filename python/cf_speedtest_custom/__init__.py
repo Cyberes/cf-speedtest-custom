@@ -1,6 +1,6 @@
-"""cf_speedtest: Python client for Cloudflare-style speedtest (Worker)."""
+"""cf_speedtest_custom: Python client for Cloudflare-style speedtest (Worker)."""
 
-from cf_speedtest.speedtest import (
+from cf_speedtest_custom.speedtest import (
     measure_latency,
     percentile,
     run_standard_test,
