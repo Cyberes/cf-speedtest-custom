@@ -14,34 +14,39 @@ npm install && npm run build
 npx wrangler deploy
 ```
 
-Optional: `npx wrangler secret put SPEEDTEST_PASSWORD` to password-protect.
+Optional: `npx wrangler secret put SPEEDTEST_PASSWORD` to password-protect. Username is ignored by the server.
+
+
 
 ## Python client
-
-Requires a Worker URL (no default). Optional Basic Auth per call.
 
 ```python
 from cf_speedtest import run_standard_test
 
-# Full sequence (same as website)
+# No auth
 results = run_standard_test("https://cf-speedtest.xxx.workers.dev")
 
-# With Basic Auth and/or shorter run
+# With optional password (same full sequence as website)
 results = run_standard_test(
     "https://cf-speedtest.xxx.workers.dev",
-    measurement_sizes=[100_000, 1_000_000, 10_000_000],
-    auth=("user", "password"),
+    auth="secret",
     verbose=True,
 )
 # results["download_speed"], ["upload_speed"] in bps; ["ping_ms"], ["jitter_ms"]
 ```
 
-**Install:** `pip install -e .` (from repo root) or `pip install git+https://github.com/<user>/<repo>.git`
 
-**CLI example:**
+
+### Install
+
+`pip install -e .` (from repo root) or `pip install git+https://github.com/<user>/<repo>.git`
+
+
+
+### CLI Example
 
 ```bash
 python python/example_test.py --url https://cf-speedtest.xxx.workers.dev
-python python/example_test.py --url https://... --user speedtest --password secret --full
+python python/example_test.py --url https://... --password secret
 python python/example_test.py --help
 ```

@@ -261,6 +261,7 @@ export const SPEEDTEST_CF_JS = `/**
     var options = { signal: this._controller.signal, credentials: 'include' };
     if (opts) { if (opts.method) options.method = opts.method; if (opts.body !== undefined) options.body = opts.body; }
     return fetch(url, options).then(function(r) {
+      if (r.status === 401) throw new Error('Password required. Reload the page and enter the password when prompted (leave username blank).');
       if (!r.ok) throw new Error(r.statusText);
       return r;
     });

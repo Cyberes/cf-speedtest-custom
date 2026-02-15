@@ -1,12 +1,15 @@
 """
 Cloudflare-style speedtest client. Same measurement sequence and formulas as
 speedtest-cf.js so results match the website.
+
+Auth: 401 is always re-raised (do not swallow in _get_ip or measurement loops)
+so the script fails fast with a clear message instead of appearing to hang.
 """
 
 import logging
 import re
 import time
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import requests
 
@@ -87,6 +90,15 @@ def _upload_body(size: int) -> bytes:
     return bytes(body[:size])
 
 
+def _normalize_auth(auth: Optional[Union[str, Tuple[str, str]]]) -> Optional[Tuple[str, str]]:
+    """Accept password-only (str) or (_, password) tuple; server only checks password."""
+    if auth is None:
+        return None
+    if isinstance(auth, str):
+        return ("", auth)
+    return auth
+
+
 def _fetch(
     method: str,
     url: str,
@@ -98,6 +110,15 @@ def _fetch(
     r = requests.request(
         method, url, auth=auth, timeout=timeout, stream=stream, data=data
     )
+    if r.status_code == 401:
+        try:
+            r.content  # consume body so connection is released (avoids pool hang)
+        except Exception:
+            pass
+        raise requests.HTTPError(
+            "401 Unauthorized: server requires a password. Use auth='<password>'.",
+            response=r,
+        )
     r.raise_for_status()
     return r
 
@@ -107,6 +128,8 @@ def _get_ip(base_url: str, auth: Optional[Tuple[str, str]], timeout: int) -> Dic
         r = _fetch("GET", f"{base_url}/getIP", auth, timeout)
         d = r.json()
         return {k: d.get(k, "") for k in ("ip", "country", "colo", "org")}
+    except requests.HTTPError:
+        raise  # fail fast with clear "password required" message (do not swallow)
     except Exception as e:
         logger.debug("getIP failed: %s", e)
         return {"ip": "", "country": "", "colo": "", "org": ""}
@@ -115,10 +138,11 @@ def _get_ip(base_url: str, auth: Optional[Tuple[str, str]], timeout: int) -> Dic
 def measure_latency(
     base_url: str,
     num_packets: int = 20,
-    auth: Optional[Tuple[str, str]] = None,
+    auth: Optional[Union[str, Tuple[str, str]]] = None,
     timeout: int = 15,
 ) -> List[float]:
     """Run latency probes; return list of ping times in ms."""
+    auth = _normalize_auth(auth)
     base_url = base_url.rstrip("/")
     out: List[float] = []
     for _ in range(num_packets):
@@ -131,6 +155,8 @@ def measure_latency(
             server_ms = _server_time_ms(r)
             ping = max(0.01, ttfb_ms - server_ms) if server_ms >= 1 else max(0.01, ttfb_ms)
             out.append(ping)
+        except requests.HTTPError:
+            raise
         except Exception as e:
             logger.debug("Latency probe failed: %s", e)
     return out
@@ -173,6 +199,8 @@ def _run_full(
                 server_ms = _server_time_ms(r)
                 ping = max(0.01, ttfb_ms - server_ms) if server_ms >= 1 else max(0.01, ttfb_ms)
                 latencies.append(ping)
+            except requests.HTTPError:
+                raise
             except Exception as e:
                 logger.debug("Latency probe failed: %s", e)
 
@@ -192,6 +220,8 @@ def _run_full(
                 down[bytes_req].append({"bps": bps, "duration": payload_ms})
                 down[bytes_req] = down[bytes_req][-count:]
                 min_dur = min(min_dur, payload_ms)
+            except requests.HTTPError:
+                raise
             except Exception as e:
                 logger.debug("Download failed: %s", e)
         if not bypass and min_dur > BANDWIDTH_FINISH_REQUEST_DURATION_MS:
@@ -215,6 +245,8 @@ def _run_full(
                 up[bytes_req].append({"bps": bps, "duration": dur_ms})
                 up[bytes_req] = up[bytes_req][-count:]
                 min_dur = min(min_dur, dur_ms)
+            except requests.HTTPError:
+                raise
             except Exception as e:
                 logger.debug("Upload failed: %s", e)
         if not bypass and min_dur > BANDWIDTH_FINISH_REQUEST_DURATION_MS:
@@ -270,6 +302,8 @@ def _run_reduced(
             payload_ms = max((time.perf_counter() - t0) * 1000, 1)
             n = sum(len(c) for c in chunks) or size
             down_pts.append({"bps": (8 * n) / (payload_ms / 1000), "duration": payload_ms})
+        except requests.HTTPError:
+            raise
         except Exception as e:
             logger.debug("Download failed: %s", e)
         try:
@@ -277,6 +311,8 @@ def _run_reduced(
             _fetch("POST", f"{base_url}/__up?r={time.perf_counter()}", auth, timeout, data=_upload_body(size))
             dur_ms = max((time.perf_counter() - t0) * 1000, 1)
             up_pts.append({"bps": (8 * size) / (dur_ms / 1000), "duration": dur_ms})
+        except requests.HTTPError:
+            raise
         except Exception as e:
             logger.debug("Upload failed: %s", e)
 
@@ -297,7 +333,7 @@ def _run_reduced(
 def run_standard_test(
     base_url: str,
     measurement_sizes: Optional[Sequence[int]] = None,
-    auth: Optional[Tuple[str, str]] = None,
+    auth: Optional[Union[str, Tuple[str, str]]] = None,
     percentile_val: float = 90,
     timeout: int = 15,
     verbose: bool = False,
@@ -305,11 +341,13 @@ def run_standard_test(
     """
     Run speedtest. base_url is required (your Worker URL).
     If measurement_sizes is None, runs the full sequence (same as website).
+    auth is optional: password string or (_, password) tuple; server only checks password.
     Returns dict: download_speed (bps), upload_speed (bps), latency_measurements, ping_ms, jitter_ms, client_ip, colo.
     """
-    base_url = base_url.strip().rstrip("/")
-    if not base_url:
+    if not base_url or not str(base_url).strip():
         raise ValueError("base_url is required.")
+    base_url = base_url.strip().rstrip("/")
+    auth = _normalize_auth(auth)
     if measurement_sizes is None:
         return _run_full(base_url, auth, timeout, verbose)
     return _run_reduced(base_url, measurement_sizes, auth, timeout, percentile_val, verbose)

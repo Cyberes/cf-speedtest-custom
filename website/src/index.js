@@ -147,7 +147,7 @@ function notFound() {
   return new Response('Not Found', { status: 404 });
 }
 
-const SPEEDTEST_PATHS = new Set(['/', '/index.html', '/speedtest-cf.js', '/__down', '/empty', '/getIP']);
+const SPEEDTEST_PATHS = new Set(['/', '/index.html', '/speedtest-cf.js', '/bootstrap.css', '/__down', '/empty', '/getIP']);
 
 function requiresSpeedtestAuth(path, method) {
   if (path === '/__up' && method === 'POST') return true;
