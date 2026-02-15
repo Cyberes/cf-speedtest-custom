@@ -4,20 +4,11 @@ _Host a speedtest server on Cloudflare Workers and run tests using a Python libr
 
 Custom speedtest platform on Cloudflare Workers. A lot of work was put into getting it to be close to the official `speed.cloudflare.com` test.
 
-
-
 ## Server and Website Install
 
 Worker is located in the `website/` directory.
 
-1. Create KV namespace:
-
-   ```bash
-   npx wrangler kv namespace create SPEEDTEST_RESULTS
-   ```
-   Copy the `id` from the output into `wrangler.toml` (replace `<YOUR_KV_NAMESPACE_ID>`).
-
-2. Install and build:
+1. Install and build:
 
    ```bash
    npm install
@@ -29,21 +20,11 @@ Worker is located in the `website/` directory.
    npx wrangler deploy
    ```
 
-   
+If you want to password protect the speedtest, set a password via:
 
-   If you want to password protect the speedtest, set a password via:
-   ```bash
-   npx wrangler secret put SPEEDTEST_PASSWORD
-   ```
-   If you want to password protect the results page:
-
-   ```
-   npx wrangler secret put RESULTS_PASSWORD
-   ```
-
-For passwords, only the password is checked (username can be left blank).
-
-
+```bash
+npx wrangler secret put SPEEDTEST_PASSWORD
+```
 
 ## Python client
 
@@ -86,10 +67,3 @@ export CF_SPEEDTEST_USER="speedtest"
 export CF_SPEEDTEST_PASS="your_password"
 python example_test.py
 ```
-
-
-
-## Cost and Limits
-
-- **Worker**: 100k requests/day free. Each speedtest uses many requests (download chunks, upload, ping, getIP, one `/results` POST). Cap download size in the Worker (default max 25 MB per `/__down` request) to limit egress.
-- **KV**: 1k writes/day free (one write per completed test); 100k reads/day (results page + one read per result write). Only the last 100 results are stored in one key.

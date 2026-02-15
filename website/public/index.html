@@ -81,9 +81,6 @@ function startStop(){
 				I("startStopBtn").textContent="Done";
 				I("statusMsg").textContent="Test complete.";
 				I("statusMsg").className="text-success fw-bold";
-				if(uiData){
-					fetch(base+'results',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({dl:uiData.dlStatus,ul:uiData.ulStatus,ping:uiData.pingStatus,jitter:uiData.jitterStatus})}).catch(function(){});
-				}
 			}
 		};
 		s.start();
@@ -152,8 +149,8 @@ function initUI(){
 	<div id="test" class="card shadow-sm mx-auto" style="max-width:42rem;">
 		<div class="card-body p-4">
 			<div class="row g-3 justify-content-center mb-3">
-				<div class="col-auto testArea2"><div class="testName text-muted">Ping</div><div id="pingText" class="meterText text-danger">0.00</div><div class="unit text-muted">ms</div></div>
-				<div class="col-auto testArea2"><div class="testName text-muted">Jitter</div><div id="jitText" class="meterText text-danger">0.00</div><div class="unit text-muted">ms</div></div>
+				<div class="col-auto testArea2"><div class="testName text-muted">Ping</div><div id="pingText" class="meterText text-dark">0.00</div><div class="unit text-muted">ms</div></div>
+				<div class="col-auto testArea2"><div class="testName text-muted">Jitter</div><div id="jitText" class="meterText text-dark">0.00</div><div class="unit text-muted">ms</div></div>
 			</div>
 			<div class="row g-3 justify-content-center">
 				<div class="col-auto testArea"><div class="testName text-muted">Download</div><canvas id="dlMeter" class="meter"></canvas><div id="dlText" class="meterText">0</div><div class="unit text-muted">Mbps</div></div>
@@ -162,9 +159,6 @@ function initUI(){
 			<div class="mt-3 text-center">
 				<small id="colo" class="text-muted d-block">CF: —</small>
 				<small id="ip" class="text-muted d-block">—</small>
-			</div>
-			<div class="mt-3 text-center">
-				<a href="/results" class="btn btn-outline-primary btn-sm">Results</a>
 			</div>
 		</div>
 	</div>

@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = path.resolve(__dirname);
 const PUBLIC = path.join(ROOT, 'public');
 const OUT = path.join(ROOT, 'src', 'assets.js');
 const BOOTSTRAP_CSS_PATH = path.join(ROOT, 'node_modules', 'bootstrap', 'dist', 'css', 'bootstrap.min.css');
@@ -21,7 +21,6 @@ function escapeJs(str) {
 
 const files = [
   { file: 'index.html', export: 'INDEX_HTML' },
-  { file: 'results.html', export: 'RESULTS_HTML' },
   { file: 'speedtest-cf.js', export: 'SPEEDTEST_CF_JS' },
 ];
 
