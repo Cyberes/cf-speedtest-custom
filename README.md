@@ -39,7 +39,7 @@ results = run_standard_test(
 
 ### Install
 
-`pip install -e .` (from repo root) or `pip install git+https://github.com/<user>/<repo>.git`
+`pip install -e .` (from repo root) or `pip install git+https://git.evulid.cc/cyberes/cf_speedtest_custom.git`
 
 
 

@@ -1,6 +1,10 @@
 """
 Cloudflare-style speedtest client. Same measurement sequence and formulas as
-speedtest-cf.js so results match the website.
+speedtest-cf.js where comparable. No correction factors. Download = payload
+bytes / payload time. Upload = chunked body; we record time when the library
+asks for each chunk (back-pressure from the socket), so intervals reflect send
+time; instantaneous bps then 90th percentile, same as website. Ping = TTFB
+minus server time (or TTFB). Jitter = mean of |latency[i]-latency[i-1]|.
 
 Auth: 401 is always re-raised (do not swallow in _get_ip or measurement loops)
 so the script fails fast with a clear message instead of appearing to hang.
@@ -9,7 +13,7 @@ so the script fails fast with a clear message instead of appearing to hang.
 import logging
 import re
 import time
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
 import requests
 
@@ -88,6 +92,43 @@ def _upload_body(size: int) -> bytes:
         for i in range(take):
             body.append((i * 31) & 0xFF)
     return bytes(body[:size])
+
+
+# Chunk size for upload: time between yields reflects when the library is ready
+# for more data (previous chunk sent). 256KB gives ~20ms intervals at 100 Mbps.
+UPLOAD_CHUNK_BYTES = 256 * 1024
+
+
+def _upload_body_chunked(
+    body: bytes, samples: List[Tuple[float, int]]
+) -> Iterator[bytes]:
+    """Yield body in chunks; record (time, cumulative_bytes) before each yield. The library asks for the next chunk when the previous has been sent, so time deltas reflect upload speed."""
+    offset = 0
+    n = len(body)
+    while offset < n:
+        samples.append((time.perf_counter(), offset))
+        end = min(offset + UPLOAD_CHUNK_BYTES, n)
+        chunk = body[offset:end]
+        offset = end
+        yield chunk
+
+
+def _upload_bps_from_samples(
+    samples: List[Tuple[float, int]], bytes_req: int
+) -> Optional[float]:
+    """Instantaneous bps = (bytes delta)/(time delta) between consecutive samples, 90th percentile. Same as website; no correction factors."""
+    if len(samples) < 2:
+        return None
+    rates: List[float] = []
+    for i in range(1, len(samples)):
+        dt = samples[i][0] - samples[i - 1][0]
+        if dt > 0:
+            db = samples[i][1] - samples[i - 1][1]
+            if db > 0:
+                rates.append((8 * db) / dt)
+    if not rates:
+        return None
+    return percentile(rates, BANDWIDTH_PERCENTILE)
 
 
 def _normalize_auth(auth: Optional[Union[str, Tuple[str, str]]]) -> Optional[Tuple[str, str]]:
@@ -237,10 +278,13 @@ def _run_full(
         for _ in range(count):
             url = f"{base_url}/__up?r={time.perf_counter()}"
             try:
+                samples: List[Tuple[float, int]] = []
+                chunked = _upload_body_chunked(body, samples)
                 t0 = time.perf_counter()
-                _fetch("POST", url, auth, timeout, data=body)
+                _fetch("POST", url, auth, timeout, data=chunked)
                 dur_ms = max((time.perf_counter() - t0) * 1000, 1)
-                bps = (8 * bytes_req) / (dur_ms / 1000)
+                bps_from_samples = _upload_bps_from_samples(samples, bytes_req)
+                bps = bps_from_samples if bps_from_samples is not None else (8 * bytes_req) / (dur_ms / 1000)
                 up.setdefault(bytes_req, [])
                 up[bytes_req].append({"bps": bps, "duration": dur_ms})
                 up[bytes_req] = up[bytes_req][-count:]
@@ -307,10 +351,16 @@ def _run_reduced(
         except Exception as e:
             logger.debug("Download failed: %s", e)
         try:
+            body = _upload_body(size)
+            samples_ul: List[Tuple[float, int]] = []
+            chunked_ul = _upload_body_chunked(body, samples_ul)
             t0 = time.perf_counter()
-            _fetch("POST", f"{base_url}/__up?r={time.perf_counter()}", auth, timeout, data=_upload_body(size))
+            _fetch("POST", f"{base_url}/__up?r={time.perf_counter()}", auth, timeout, data=chunked_ul)
             dur_ms = max((time.perf_counter() - t0) * 1000, 1)
-            up_pts.append({"bps": (8 * size) / (dur_ms / 1000), "duration": dur_ms})
+            bps_ul = _upload_bps_from_samples(samples_ul, size)
+            if bps_ul is None:
+                bps_ul = (8 * size) / (dur_ms / 1000)
+            up_pts.append({"bps": bps_ul, "duration": dur_ms})
         except requests.HTTPError:
             raise
         except Exception as e:
