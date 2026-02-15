@@ -9,14 +9,16 @@ from .utils import percentile as _percentile
 # Create module-level logger (not root logger)
 _logger = logging.getLogger(__name__)
 _logger.setLevel(logging.WARNING)  # Default to WARNING level
-# Add a null handler if no handlers exist to avoid using root logger
+# Add a console handler if no handlers exist to avoid using root logger
 if not _logger.handlers:
-    _handler = logging.NullHandler()
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
     _logger.addHandler(_handler)
+    _logger.propagate = False  # Don't propagate to root logger
 
 # Request spacing to avoid rate limiting (inspired by Rust implementation)
-REQUEST_DELAY = 0.1  # 100ms delay between requests (matching Rust: 100ms after errors)
-REQUEST_DELAY_BETWEEN_SIZES = 0.5  # 500ms delay between different measurement sizes
+REQUEST_DELAY = 1.0  # 1 second delay between requests of the same size (increased to avoid rate limiting)
+REQUEST_DELAY_BETWEEN_SIZES = 7.5  # 7.5 seconds delay between different measurement sizes (5-10s range)
 
 # Retry configuration
 MAX_RETRIES = 3  # Maximum retries per measurement
@@ -502,6 +504,7 @@ def run_standard_test(
             continue
         
         # Add delay between different measurement sizes (except first measurement)
+        # Longer delay helps avoid rate limiting on large files
         if idx > 0:
             time.sleep(REQUEST_DELAY_BETWEEN_SIZES)
         
@@ -520,6 +523,10 @@ def run_standard_test(
                     if m['duration'] >= BANDWIDTH_MIN_REQUEST_DURATION
                 ]
                 download_results.extend(valid_measurements)
+                
+                # Add delay after completing a measurement size to avoid rate limiting
+                if valid_measurements:
+                    time.sleep(REQUEST_DELAY_BETWEEN_SIZES)
                 
                 # Check for early stopping (if min duration > finish threshold and not bypassed)
                 # Only stop if we got valid measurements and min_duration exceeds threshold
@@ -551,6 +558,10 @@ def run_standard_test(
                     if m['duration'] >= BANDWIDTH_MIN_REQUEST_DURATION
                 ]
                 upload_results.extend(valid_measurements)
+                
+                # Add delay after completing a measurement size to avoid rate limiting
+                if valid_measurements:
+                    time.sleep(REQUEST_DELAY_BETWEEN_SIZES)
                 
                 # Check for early stopping (if min duration > finish threshold and not bypassed)
                 # Only stop if we got valid measurements and min_duration exceeds threshold

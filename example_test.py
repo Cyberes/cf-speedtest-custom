@@ -2,7 +2,10 @@
 """Example script demonstrating cf_speedtest library usage"""
 
 import sys
-from cf_speedtest.speedtest import run_standard_test
+from cf_speedtest.speedtest import run_standard_test, silence_warnings
+
+# Uncomment the line below to silence all warnings during the test
+# silence_warnings()
 
 def main():
     print("Starting Cloudflare Speedtest...")
