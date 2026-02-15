@@ -13,6 +13,23 @@ REQUEST_DELAY = 0.0  # No delay - match Node.js behavior
 # Export percentile function for compatibility
 percentile = _percentile
 
+
+class RateLimitError(Exception):
+    """Raised when Cloudflare rate limits the speedtest requests"""
+    def __init__(self, status_code: int, retry_after: Optional[str] = None, message: str = ""):
+        self.status_code = status_code
+        self.retry_after = retry_after
+        if not message:
+            if status_code == 429:
+                retry_msg = f" Retry-After: {retry_after} seconds." if retry_after else ""
+                message = f"Rate limited (429) by Cloudflare.{retry_msg} Too many requests made too quickly."
+            elif status_code == 403:
+                message = "Request blocked (403) by Cloudflare. Rate limit exceeded or IP blocked."
+            else:
+                message = f"HTTP error {status_code} from Cloudflare."
+        super().__init__(message)
+
+
 # API endpoints
 DOWNLOAD_API_URL = 'https://speed.cloudflare.com/__down'
 UPLOAD_API_URL = 'https://speed.cloudflare.com/__up'
@@ -119,11 +136,12 @@ def measure_download_bandwidth(bytes_size: int, count: int, bypass_min_duration:
             # Check for rate limiting or errors
             if not response.ok:
                 if response.status_code == 429:
-                    # Rate limited - skip this measurement
-                    continue
+                    retry_after = response.headers.get('Retry-After')
+                    raise RateLimitError(429, retry_after)
+                elif response.status_code == 403:
+                    raise RateLimitError(403)
                 else:
-                    # Other error - skip this measurement
-                    continue
+                    raise RateLimitError(response.status_code, message=f"HTTP error {response.status_code}: {response.reason}")
             
             # response.elapsed gives time from sending request to receiving headers (TTFB)
             headers_received = time.time()
@@ -220,11 +238,12 @@ def measure_upload_bandwidth(bytes_size: int, count: int, bypass_min_duration: b
             # Check for rate limiting or errors
             if not response.ok:
                 if response.status_code == 429:
-                    # Rate limited - skip this measurement
-                    continue
+                    retry_after = response.headers.get('Retry-After')
+                    raise RateLimitError(429, retry_after)
+                elif response.status_code == 403:
+                    raise RateLimitError(403)
                 else:
-                    # Other error - skip this measurement
-                    continue
+                    raise RateLimitError(response.status_code, message=f"HTTP error {response.status_code}: {response.reason}")
             
             # Wait for response to complete
             _ = response.content
