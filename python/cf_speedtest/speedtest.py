@@ -73,9 +73,50 @@ class RateLimitError(Exception):
         super().__init__(message)
 
 
-# API endpoints
-DOWNLOAD_API_URL = 'https://speed.cloudflare.com/__down'
+# Default API base (Cloudflare's public speedtest). Override with configure() to use your Worker.
+_config: Dict[str, Optional[object]] = {
+    'base_url': 'https://speed.cloudflare.com',
+    'auth': None,  # Optional tuple (user, password) for HTTP Basic Auth
+}
+
+DOWNLOAD_API_URL = 'https://speed.cloudflare.com/__down'  # used only when base_url not overridden
 UPLOAD_API_URL = 'https://speed.cloudflare.com/__up'
+
+
+def configure(
+    base_url: Optional[str] = None,
+    auth: Optional[Tuple[str, str]] = None,
+) -> None:
+    """
+    Configure the speedtest client to use a custom Worker or auth.
+
+    Args:
+        base_url: Base URL of the speedtest backend (e.g. https://cf-speedtest.your-subdomain.workers.dev).
+                  Must not include trailing slash. Default is https://speed.cloudflare.com.
+        auth: Optional (username, password) for HTTP Basic Auth. Required if your Worker has
+              SPEEDTEST_PASSWORD set.
+
+    Example:
+        >>> from cf_speedtest.speedtest import configure, run_standard_test
+        >>> configure(base_url='https://cf-speedtest.xxx.workers.dev', auth=('speedtest', 'mypass'))
+        >>> run_standard_test([100_000, 1_000_000], 90)
+    """
+    if base_url is not None:
+        _config['base_url'] = base_url.rstrip('/')
+    if auth is not None:
+        _config['auth'] = tuple(auth)
+
+
+def _download_url() -> str:
+    return _config['base_url'] + '/__down'
+
+
+def _upload_url() -> str:
+    return _config['base_url'] + '/__up'
+
+
+def _auth() -> Optional[Tuple[str, str]]:
+    return _config.get('auth')
 
 # Constants
 ESTIMATED_HEADER_FRACTION = 0.005  # ~0.5% of packet header/payload size
@@ -120,9 +161,10 @@ def measure_latency(num_packets: int = 20) -> List[float]:
         try:
             start_time = time.time()
             response = requests.get(
-                DOWNLOAD_API_URL,
+                _download_url(),
                 params={'bytes': '0'},
-                timeout=30
+                timeout=30,
+                auth=_auth(),
             )
             end_time = time.time()
             
@@ -181,10 +223,11 @@ def measure_download_bandwidth(bytes_size: int, count: int, bypass_min_duration:
                 # Measure total request time
                 request_start = time.time()
                 response = requests.get(
-                    DOWNLOAD_API_URL,
+                    _download_url(),
                     params={'bytes': str(current_size)},
                     timeout=60,
-                    stream=True  # Use streaming to measure payload download time accurately
+                    stream=True,  # Use streaming to measure payload download time accurately
+                    auth=_auth(),
                 )
                 
                 # Check for rate limiting or errors
@@ -336,9 +379,10 @@ def measure_upload_bandwidth(bytes_size: int, count: int, bypass_min_duration: b
                 # Measure total request time (includes sending data + receiving response)
                 request_start = time.time()
                 response = requests.post(
-                    UPLOAD_API_URL,
+                    _upload_url(),
                     data=content,
-                    timeout=60
+                    timeout=60,
+                    auth=_auth(),
                 )
                 
                 # Check for rate limiting or errors
@@ -443,23 +487,50 @@ def run_standard_test(
     measurement_sizes: List[int],
     percentile_val: float,
     verbose: bool = True,
-    testpatience: int = 15
+    testpatience: int = 15,
+    base_url: Optional[str] = None,
+    auth: Optional[Tuple[str, str]] = None,
 ) -> Dict:
     """
     Run a standard speedtest matching the Node.js implementation sequence.
-    
+
     Args:
         measurement_sizes: List of byte sizes to test (used to build measurement sequence)
         percentile_val: Percentile value (0-100) for bandwidth calculation
         verbose: Whether to print progress (ignored for now)
         testpatience: Timeout patience in seconds (not currently used)
-    
+        base_url: Optional override for speedtest backend base URL (e.g. your Worker URL).
+        auth: Optional (username, password) for HTTP Basic Auth.
+
     Returns:
         Dictionary with:
         - download_speed: Download speed in bytes per second
         - upload_speed: Upload speed in bytes per second
         - latency_measurements: List of latency measurements in milliseconds
     """
+    old_base = old_auth = None
+    if base_url is not None or auth is not None:
+        old_base, old_auth = _config.get('base_url'), _config.get('auth')
+        if base_url is not None:
+            _config['base_url'] = base_url.rstrip('/')
+        if auth is not None:
+            _config['auth'] = tuple(auth)
+    try:
+        return _run_standard_test_impl(measurement_sizes, percentile_val, verbose, testpatience)
+    finally:
+        if old_base is not None or old_auth is not None:
+            if old_base is not None:
+                _config['base_url'] = old_base
+            if old_auth is not None:
+                _config['auth'] = old_auth
+
+
+def _run_standard_test_impl(
+    measurement_sizes: List[int],
+    percentile_val: float,
+    verbose: bool,
+    testpatience: int,
+) -> Dict:
     # Convert percentile from 0-100 range to 0-1 range
     bandwidth_percentile = percentile_val / 100.0 if percentile_val > 1 else percentile_val
     

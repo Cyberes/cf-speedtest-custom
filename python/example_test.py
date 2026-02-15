@@ -1,20 +1,26 @@
 #!/usr/bin/env python3
 """Example script demonstrating cf_speedtest library usage"""
 
+import os
 import sys
-from cf_speedtest.speedtest import run_standard_test, silence_warnings
+from cf_speedtest.speedtest import run_standard_test, configure, silence_warnings
 
-# Uncomment the line below to silence all warnings during the test
+# Uncomment to silence all warnings during the test
 # silence_warnings()
 
 def main():
     print("Starting Cloudflare Speedtest...")
     print("This follows the same sequence as the Node.js implementation.")
     print("This may take a few minutes...\n")
-    
-    # Define measurement sizes (in bytes) - same as check_speedtest.py
-    # Note: The actual measurement sequence is hardcoded in run_standard_test
-    # to match the Node.js defaultConfig, but we pass this for compatibility
+
+    # Optional: use your own Worker and Basic Auth (set env vars or call configure())
+    base_url = os.environ.get("CF_SPEEDTEST_URL")  # e.g. https://cf-speedtest.xxx.workers.dev
+    auth_user = os.environ.get("CF_SPEEDTEST_USER")  # e.g. speedtest
+    auth_pass = os.environ.get("CF_SPEEDTEST_PASS")
+    if base_url:
+        configure(base_url=base_url, auth=(auth_user, auth_pass) if auth_user and auth_pass else None)
+        print("Using backend:", base_url)
+
     measurement_sizes = [
         100_000,
         1_000_000,
@@ -23,21 +29,13 @@ def main():
         100_000_000,
         250_000_000,
     ]
-    
+
     try:
-        # Run the speedtest
-        # Parameters: measurement_sizes, percentile (0-100), verbose, testpatience (seconds)
-        # The test follows this sequence (matching Node.js):
-        # 1. Initial latency (1 packet)
-        # 2. Initial download (100KB, 1 count)
-        # 3. Main latency (20 packets)
-        # 4. Download/Upload measurements with increasing sizes
-        # 5. Early stopping if measurements take > 1000ms
         results = run_standard_test(
             measurement_sizes=measurement_sizes,
             percentile_val=90,
             verbose=True,
-            testpatience=15
+            testpatience=15,
         )
         
         # Display results

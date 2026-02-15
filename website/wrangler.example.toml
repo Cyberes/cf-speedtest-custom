@@ -1,0 +1,12 @@
+name = "cf-speedtest"
+main = "src/index.js"
+compatibility_date = "2025-12-01"
+
+# KV only for last 100 speedtest results
+# Create with: `npx wrangler kv namespace create SPEEDTEST_RESULTS`
+[[kv_namespaces]]
+binding = "SPEEDTEST_KV"
+id = "<YOUR_KV_NAMESPACE_ID>"
+
+[placement]
+mode = "smart"

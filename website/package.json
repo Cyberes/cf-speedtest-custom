@@ -1,0 +1,15 @@
+{
+  "name": "cf-speedtest",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node bundle-assets.js",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.65.0"
+  },
+  "dependencies": {
+    "bootstrap": "^5.3.8"
+  }
+}
