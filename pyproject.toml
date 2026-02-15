@@ -16,5 +16,5 @@ dependencies = [
 dev = []
 
 [tool.setuptools.packages.find]
-where = ["."]
+where = ["python"]
 include = ["cf_speedtest*"]

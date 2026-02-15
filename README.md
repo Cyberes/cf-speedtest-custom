@@ -1,69 +1,47 @@
-# cf_speedtest_custom
+# cf_speedtest
 
 _Host a speedtest server on Cloudflare Workers and run tests using a Python library._
 
-Custom speedtest platform on Cloudflare Workers. A lot of work was put into getting it to be close to the official `speed.cloudflare.com` test.
+Custom speedtest platform on Cloudflare Workers. Includes a website and Python client.
 
-## Server and Website Install
 
-Worker is located in the `website/` directory.
 
-1. Install and build:
-
-   ```bash
-   npm install
-   npm run build
-   ```
-
-3. Deploy:
-   ```bash
-   npx wrangler deploy
-   ```
-
-If you want to password protect the speedtest, set a password via:
+## Worker (website)
 
 ```bash
-npx wrangler secret put SPEEDTEST_PASSWORD
+cd website
+npm install && npm run build
+npx wrangler deploy
 ```
+
+Optional: `npx wrangler secret put SPEEDTEST_PASSWORD` to password-protect.
 
 ## Python client
 
-Default backend is `https://speed.cloudflare.com`. To use **your** Worker and optional Basic Auth:
+Requires a Worker URL (no default). Optional Basic Auth per call.
 
 ```python
-from cf_speedtest.speedtest import configure, run_standard_test
+from cf_speedtest import run_standard_test
 
-configure(
-    base_url="https://cf-speedtest.your-subdomain.workers.dev",
-    auth=("speedtest", "your_speedtest_password"),
-)
-results = run_standard_test([100_000, 1_000_000, 10_000_000], percentile_val=90)
-print("Download (bytes/s):", results["download_speed"])
-print("Upload (bytes/s):", results["upload_speed"])
-```
+# Full sequence (same as website)
+results = run_standard_test("https://cf-speedtest.xxx.workers.dev")
 
-Or pass per-call overrides:
-
-```python
+# With Basic Auth and/or shorter run
 results = run_standard_test(
-    [100_000, 1_000_000],
-    90,
-    base_url="https://cf-speedtest.xxx.workers.dev",
-    auth=("speedtest", "mypass"),
+    "https://cf-speedtest.xxx.workers.dev",
+    measurement_sizes=[100_000, 1_000_000, 10_000_000],
+    auth=("user", "password"),
+    verbose=True,
 )
+# results["download_speed"], ["upload_speed"] in bps; ["ping_ms"], ["jitter_ms"]
 ```
 
-Install the package (from repo root):
+**Install:** `pip install -e .` (from repo root) or `pip install git+https://github.com/<user>/<repo>.git`
+
+**CLI example:**
 
 ```bash
-pip install -e .
-```
-
-Example script with env-based config:
-
-```bash
-export CF_SPEEDTEST_URL="https://cf-speedtest.xxx.workers.dev"
-export CF_SPEEDTEST_USER="speedtest"
-export CF_SPEEDTEST_PASS="your_password"
-python example_test.py
+python python/example_test.py --url https://cf-speedtest.xxx.workers.dev
+python python/example_test.py --url https://... --user speedtest --password secret --full
+python python/example_test.py --help
 ```

@@ -1,75 +1,77 @@
 #!/usr/bin/env python3
-"""Example script demonstrating cf_speedtest library usage"""
+"""Example: run a Cloudflare-style speedtest against your Worker."""
 
-import os
+import argparse
 import sys
-from cf_speedtest.speedtest import run_standard_test, configure, silence_warnings
+from cf_speedtest.speedtest import run_standard_test, silence_warnings
 
-# Uncomment to silence all warnings during the test
-# silence_warnings()
+REDUCED_SIZES = [
+    100_000,
+    1_000_000,
+    10_000_000,
+    25_000_000,
+    100_000_000,
+    250_000_000,
+]
 
-def main():
-    print("Starting Cloudflare Speedtest...")
-    print("This follows the same sequence as the Node.js implementation.")
-    print("This may take a few minutes...\n")
 
-    # Optional: use your own Worker and Basic Auth (set env vars or call configure())
-    base_url = os.environ.get("CF_SPEEDTEST_URL")  # e.g. https://cf-speedtest.xxx.workers.dev
-    auth_user = os.environ.get("CF_SPEEDTEST_USER")  # e.g. speedtest
-    auth_pass = os.environ.get("CF_SPEEDTEST_PASS")
-    if base_url:
-        configure(base_url=base_url, auth=(auth_user, auth_pass) if auth_user and auth_pass else None)
-        print("Using backend:", base_url)
+def main() -> int:
+    p = argparse.ArgumentParser(description="Run speedtest against your Worker.")
+    p.add_argument("--url", "-u", required=True, help="Worker URL (e.g. https://cf-speedtest.xxx.workers.dev)")
+    p.add_argument("--user", help="Basic auth username")
+    p.add_argument("--password", help="Basic auth password")
+    p.add_argument("--full", action="store_true", help="Full measurement sequence (same as website)")
+    p.add_argument("--quiet", "-q", action="store_true", help="Less output")
+    p.add_argument("--no-warnings", action="store_true", help="Suppress urllib3/requests warnings")
+    p.add_argument("--percentile", type=float, default=90, help="Bandwidth percentile 0–100 (default: 90)")
+    p.add_argument("--timeout", type=int, default=15, help="Request timeout in seconds (default: 15)")
+    args = p.parse_args()
 
-    measurement_sizes = [
-        100_000,
-        1_000_000,
-        10_000_000,
-        25_000_000,
-        100_000_000,
-        250_000_000,
-    ]
+    if args.no_warnings:
+        silence_warnings()
+
+    auth = None
+    if args.user and args.password:
+        auth = (args.user, args.password)
+    elif args.user or args.password:
+        p.error("--user and --password must be given together")
+
+    base_url = args.url.rstrip("/")
+    print("Backend:", base_url)
+    if args.full:
+        print("Full sequence (same as website).")
+    print("Running...\n")
 
     try:
         results = run_standard_test(
-            measurement_sizes=measurement_sizes,
-            percentile_val=90,
-            verbose=True,
-            testpatience=15,
+            base_url,
+            measurement_sizes=None if args.full else REDUCED_SIZES,
+            auth=auth,
+            percentile_val=args.percentile,
+            timeout=args.timeout,
+            verbose=not args.quiet,
         )
-        
-        # Display results
-        print("\n" + "="*50)
-        print("Speedtest Results")
-        print("="*50)
-        
-        download_mbps = results['download_speed'] / 1_000_000
-        upload_mbps = results['upload_speed'] / 1_000_000
-        
-        print(f"Download Speed: {download_mbps:.2f} Mbps ({results['download_speed']:.0f} bytes/sec)")
-        print(f"Upload Speed:   {upload_mbps:.2f} Mbps ({results['upload_speed']:.0f} bytes/sec)")
-        
-        # Calculate latency statistics
-        latencies = results['latency_measurements']
-        if latencies:
-            avg_latency = sum(latencies) / len(latencies)
-            min_latency = min(latencies)
-            max_latency = max(latencies)
-            
-            print(f"\nLatency Measurements: {len(latencies)} samples")
-            print(f"  Average: {avg_latency:.2f} ms")
-            print(f"  Minimum: {min_latency:.2f} ms")
-            print(f"  Maximum: {max_latency:.2f} ms")
-        
-        print("="*50)
-        
-        return 0
-        
     except Exception as e:
-        print(f"\nError running speedtest: {e}", file=sys.stderr)
+        print(f"Error: {e}", file=sys.stderr)
         import traceback
         traceback.print_exc()
         return 1
+
+    dl = results["download_speed"] / 1_000_000
+    ul = results["upload_speed"] / 1_000_000
+    print("=" * 50)
+    print("Results")
+    print("=" * 50)
+    print(f"Download: {dl:.2f} Mbps")
+    print(f"Upload:   {ul:.2f} Mbps")
+    print(f"Ping:     {results['ping_ms']:.2f} ms")
+    print(f"Jitter:   {results['jitter_ms']:.2f} ms")
+    lat = results["latency_measurements"]
+    if lat:
+        print(f"Latency:  {len(lat)} samples (avg {sum(lat)/len(lat):.2f} ms)")
+    print("=" * 50)
+    return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())
