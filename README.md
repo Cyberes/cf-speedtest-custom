@@ -2,8 +2,9 @@
 
 _Host a speedtest server on Cloudflare Workers and run tests using a Python library._
 
-Custom speedtest platform on Cloudflare Workers. Includes a website and Python client.
+Custom speedtest platform on Cloudflare Workers. Includes a website and Python client. A lot of work has been put into making sure it produces similar results to `speed.cloudflare.com`.
 
+I used to run automated speedtests against `speed.cloudflare.com` but they have tightened their rate-limiting to the point that these automated runs are non-functional.
 
 
 ## Worker (website)

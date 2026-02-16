@@ -41,7 +41,7 @@ function drawMeter(c,amount,bk,fg,progress,prog){
 		ctx.fillRect((c.width-barW)/2,c.height-16*sizScale,barW,4*sizScale);
 	}
 }
-function mbpsToAmount(s){ return 1-(1/(Math.pow(1.3,Math.sqrt(s)))); }
+function mbpsToAmount(s){ return Math.min(1, Math.max(0, Number(s)) / 1000); }
 function format(d){
 	d=Number(d);
 	if(d<10) return d.toFixed(2);
@@ -122,7 +122,7 @@ function initUI(){
 	I("dlText").textContent="0";
 	I("ulText").textContent="0";
 	I("ip").textContent="—";
-	document.getElementById('colo').textContent="CF: —";
+	document.getElementById('colo').textContent="Server: —";
 	I("statusMsg").textContent="";
 	I("statusMsg").className="";
 }
@@ -159,7 +159,7 @@ function initUI(){
 				<div class="col-auto testArea"><div class="testName text-muted">Upload</div><canvas id="ulMeter" class="meter"></canvas><div id="ulText" class="meterText">0</div><div class="unit text-muted">Mbps</div></div>
 			</div>
 			<div class="mt-3 text-center">
-				<small id="colo" class="text-muted d-block">CF: —</small>
+				<small id="colo" class="text-muted d-block">Server: —</small>
 				<small id="ip" class="text-muted d-block">—</small>
 			</div>
 		</div>
@@ -476,7 +476,7 @@ export const SPEEDTEST_CF_JS = `/**
     var self = this;
     return this._doFetch(this.baseUrl + '/getIP').then(function(r) { return r.json(); }).then(function(d) {
       self._clientIp = (d.ip || '') + ' ' + (d.org || '') + ' ' + (d.country || '');
-      self._colo = d.colo ? ('CF: ' + d.colo) : '';
+      self._colo = d.colo ? ('Server: ' + d.colo) : '';
     }).catch(function() {});
   };
 

@@ -15,7 +15,6 @@ def main() -> int:
     p.add_argument("--password", help="Password (optional; use when Worker is password-protected)")
     p.add_argument("--quiet", "-q", action="store_true", help="Less output")
     p.add_argument("--no-warnings", action="store_true", help="Suppress urllib3/requests warnings")
-    p.add_argument("--percentile", type=float, default=90, help="Bandwidth percentile 0–100 (default: 90)")
     p.add_argument("--timeout", type=int, default=15, help="Request timeout in seconds (default: 15)")
     args = p.parse_args()
 
@@ -32,9 +31,7 @@ def main() -> int:
     try:
         results = run_standard_test(
             base_url,
-            measurement_sizes=None,
             auth=auth,
-            percentile_val=args.percentile,
             timeout=args.timeout,
             verbose=not args.quiet,
         )

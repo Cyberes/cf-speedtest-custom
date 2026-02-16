@@ -304,7 +304,7 @@
     var self = this;
     return this._doFetch(this.baseUrl + '/getIP').then(function(r) { return r.json(); }).then(function(d) {
       self._clientIp = (d.ip || '') + ' ' + (d.org || '') + ' ' + (d.country || '');
-      self._colo = d.colo ? ('CF: ' + d.colo) : '';
+      self._colo = d.colo ? ('Server: ' + d.colo) : '';
     }).catch(function() {});
   };
 
