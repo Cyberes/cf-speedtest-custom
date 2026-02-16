@@ -2,5 +2,6 @@ name = "cf-speedtest"
 main = "src/index.js"
 compatibility_date = "2025-12-01"
 
+# Default placement: run in PoP nearest the user.
 [placement]
-mode = "smart"
+mode = "off"
