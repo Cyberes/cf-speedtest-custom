@@ -5,6 +5,13 @@ from cf_speedtest_custom.speedtest import (
     percentile,
     run_standard_test,
     silence_warnings,
+    SpeedtestResult,
 )
 
-__all__ = ["measure_latency", "percentile", "run_standard_test", "silence_warnings"]
+__all__ = [
+    "measure_latency",
+    "percentile",
+    "run_standard_test",
+    "silence_warnings",
+    "SpeedtestResult",
+]

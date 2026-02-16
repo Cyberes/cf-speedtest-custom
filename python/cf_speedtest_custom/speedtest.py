@@ -13,9 +13,23 @@ so the script fails fast with a clear message instead of appearing to hang.
 import logging
 import re
 import time
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Union
+from dataclasses import dataclass
+from typing import Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
 import requests
+
+
+@dataclass(frozen=True)
+class SpeedtestResult:
+    """Result of a full speedtest run. All speeds in bits per second (bps)."""
+
+    download_speed: float  # bps
+    upload_speed: float  # bps
+    latency_measurements: Tuple[float, ...]  # ping samples in ms
+    ping_ms: float
+    jitter_ms: float
+    client_ip: str
+    colo: str
 
 logger = logging.getLogger(__name__)
 
@@ -230,7 +244,7 @@ def _run_full(
     auth: Optional[Tuple[str, str]],
     timeout: int,
     verbose: bool,
-) -> Dict[str, Any]:
+) -> SpeedtestResult:
     base_url = base_url.rstrip("/")
     latencies: List[float] = []
     down: Dict[int, List[Dict[str, float]]] = {}
@@ -336,15 +350,15 @@ def _run_full(
 
     dl_pts = [p["bps"] for p in all_points(down) if p["duration"] >= BANDWIDTH_MIN_REQUEST_DURATION_MS and p["bps"]]
     ul_pts = [p["bps"] for p in all_points(up) if p["duration"] >= BANDWIDTH_MIN_REQUEST_DURATION_MS and p["bps"]]
-    return {
-        "latency_measurements": latencies,
-        "ping_ms": percentile(latencies, LATENCY_PERCENTILE) if latencies else 0.0,
-        "jitter_ms": _jitter(latencies) if len(latencies) >= 2 else 0.0,
-        "download_speed": percentile(dl_pts, BANDWIDTH_PERCENTILE) if dl_pts else 0.0,
-        "upload_speed": percentile(ul_pts, BANDWIDTH_PERCENTILE) if ul_pts else 0.0,
-        "client_ip": f"{info.get('ip', '')} {info.get('org', '')} {info.get('country', '')}".strip(),
-        "colo": f"Server: {info['colo']}" if info.get("colo") else "",
-    }
+    return SpeedtestResult(
+        latency_measurements=tuple(latencies),
+        ping_ms=percentile(latencies, LATENCY_PERCENTILE) if latencies else 0.0,
+        jitter_ms=_jitter(latencies) if len(latencies) >= 2 else 0.0,
+        download_speed=percentile(dl_pts, BANDWIDTH_PERCENTILE) if dl_pts else 0.0,
+        upload_speed=percentile(ul_pts, BANDWIDTH_PERCENTILE) if ul_pts else 0.0,
+        client_ip=f"{info.get('ip', '')} {info.get('org', '')} {info.get('country', '')}".strip(),
+        colo=f"Server: {info['colo']}" if info.get("colo") else "",
+    )
 
 
 def run_standard_test(
@@ -352,12 +366,12 @@ def run_standard_test(
     auth: Optional[Union[str, Tuple[str, str]]] = None,
     timeout: int = 15,
     verbose: bool = False,
-) -> Dict[str, Any]:
+) -> SpeedtestResult:
     """
     Run the full speedtest (same sequence as the website).
     base_url is required (your Worker URL).
     auth is optional: password string or (_, password) tuple; server only checks password.
-    Returns dict: download_speed (bps), upload_speed (bps), latency_measurements, ping_ms, jitter_ms, client_ip, colo.
+    Returns SpeedtestResult with download_speed/upload_speed in bps, ping_ms, jitter_ms, client_ip, colo.
     """
     if not base_url or not str(base_url).strip():
         raise ValueError("base_url is required.")

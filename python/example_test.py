@@ -50,16 +50,16 @@ def main() -> int:
         traceback.print_exc()
         return 1
 
-    dl = results["download_speed"] / 1_000_000
-    ul = results["upload_speed"] / 1_000_000
+    dl = results.download_speed / 1_000_000
+    ul = results.upload_speed / 1_000_000
     print("=" * 50)
     print("Results")
     print("=" * 50)
     print(f"Download: {dl:.2f} Mbps")
     print(f"Upload:   {ul:.2f} Mbps")
-    print(f"Ping:     {results['ping_ms']:.2f} ms")
-    print(f"Jitter:   {results['jitter_ms']:.2f} ms")
-    lat = results["latency_measurements"]
+    print(f"Ping:     {results.ping_ms:.2f} ms")
+    print(f"Jitter:   {results.jitter_ms:.2f} ms")
+    lat = results.latency_measurements
     if lat:
         print(f"Latency:  {len(lat)} samples (avg {sum(lat)/len(lat):.2f} ms)")
     print("=" * 50)

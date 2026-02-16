@@ -33,7 +33,7 @@ results = run_standard_test(
     auth="secret",
     verbose=True,
 )
-# results["download_speed"], ["upload_speed"] in bps; ["ping_ms"], ["jitter_ms"]
+# results is a SpeedtestResult: .download_speed, .upload_speed (bps), .ping_ms, .jitter_ms, .latency_measurements, .client_ip, .colo
 ```
 
 
