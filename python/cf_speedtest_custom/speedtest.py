@@ -31,6 +31,15 @@ class SpeedtestResult:
     client_ip: str
     colo: str
 
+
+__all__ = [
+    "SpeedtestResult",
+    "measure_latency",
+    "percentile",
+    "run_standard_test",
+    "silence_warnings",
+]
+
 logger = logging.getLogger(__name__)
 
 BANDWIDTH_FINISH_REQUEST_DURATION_MS = 1000
