@@ -151,7 +151,7 @@ function initUI(){
 	<div id="test" class="card shadow-sm mx-auto" style="max-width:42rem;">
 		<div class="card-body p-4">
 			<div class="row g-3 justify-content-center mb-3">
-				<div class="col-auto testArea2"><div class="testName text-muted">Ping</div><div id="pingText" class="meterText text-dark">0.00</div><div class="unit text-muted">ms</div></div>
+				<div class="col-auto testArea2"><div class="testName text-muted">Latency (ping)</div><div id="pingText" class="meterText text-dark">0.00</div><div class="unit text-muted">ms</div></div>
 				<div class="col-auto testArea2"><div class="testName text-muted">Jitter</div><div id="jitText" class="meterText text-dark">0.00</div><div class="unit text-muted">ms</div></div>
 			</div>
 			<div class="row g-3 justify-content-center">

@@ -1,4 +1,4 @@
-# cf_speedtest
+# cf-speedtest-custom
 
 _Host a speedtest server on Cloudflare Workers and run tests using a Python library._
 
@@ -39,7 +39,7 @@ results = run_standard_test(
 
 ### Install
 
-`pip install -e .` (from repo root) or `pip install git+https://git.evulid.cc/cyberes/cf_speedtest_custom.git`
+`pip install -e .` (from repo root) or `pip install git+https://git.evulid.cc/cyberes/cf-speedtest-custom`
 
 
 
